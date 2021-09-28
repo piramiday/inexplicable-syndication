@@ -1,0 +1,47 @@
+name: rss
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/15 * * * *'
+jobs:
+
+  rbg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: update
+        run: bash rbg.sh > rbg.xml
+        env:
+          DOMAIN: ${{ secrets.DOMAIN_RBG}}
+
+      - name: push
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email $GITHUB_ACTOR@users.noreply.github.com
+          git checkout --orphan rbg
+          git rm --cached -r .
+          git add rbg.xml
+          git commit -m "$(date +%s)"
+          git push origin feed --force || true
+
+  icn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: update
+        run: bash icn.sh > icn.xml
+        env:
+          DOMAIN: ${{ secrets.DOMAIN_ICN}}
+
+      - name: push
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email $GITHUB_ACTOR@users.noreply.github.com
+          git checkout --orphan icn
+          git rm --cached -r .
+          git add icn.xml
+          git commit -m "$(date +%s)"
+          git push origin feed --force || true
