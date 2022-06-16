@@ -6,42 +6,118 @@ on:
     - cron: '*/15 * * * *'
 jobs:
 
-  rbg:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: update
-        run: bash rbg.sh > rbg.xml
-        env:
-          DOMAIN: ${{ secrets.DOMAIN_RBG}}
-
-      - name: push
-        run: |
-          git config user.name $GITHUB_ACTOR
-          git config user.email $GITHUB_ACTOR@users.noreply.github.com
-          git checkout --orphan rbg
-          git rm --cached -r .
-          git add rbg.xml
-          git commit -m "$(date +%s)"
-          git push origin feed --force || true
-
   icn:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
+      - name: pull
+        run: |
+          git fetch -a
+          git checkout origin/icn -- icn.xml
+          mv {icn,old}.xml
+
       - name: update
-        run: bash icn.sh > icn.xml
+        run: |
+          bash icn.sh | tee new.xml > icn.xml
+          { [[ -s new.xml ]] && echo XML=0 || echo XML=1; } >> $GITHUB_ENV
         env:
-          DOMAIN: ${{ secrets.DOMAIN_ICN}}
+          DOMAIN: ${{ secrets.DOMAIN_ICN }}
+
+      - name: diff
+        if: env.XML == 0
+        run: |
+          grep '<item' old.xml > .diff0.xml || true
+          grep '<item' new.xml > .diff1.xml
+          diff .diff?.xml || true
+          echo "DIFF=$(diff .diff?.xml > /dev/null; echo $?)" | tee -a $GITHUB_ENV
 
       - name: push
+        if: env.DIFF != 0
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email $GITHUB_ACTOR@users.noreply.github.com
           git checkout --orphan icn
-          git rm --cached -r .
+          git rm --cached -rf .
           git add icn.xml
           git commit -m "$(date +%s)"
-          git push origin feed --force || true
+          git push origin icn --force || true
+
+  icv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: pull
+        run: |
+          git fetch -a
+          git checkout origin/icv -- icv.xml
+          mv {icv,old}.xml
+
+      - name: update
+        run: |
+          bash icv.sh | tee new.xml > icv.xml
+          grep -q '<item' new.xml && echo "NEW=1" | tee -a $GITHUB_ENV
+        env:
+          DOMAIN: ${{ secrets.DOMAIN_ICV }}
+          COOKIE: ${{ secrets.COOKIE_ICV }}
+
+
+      - name: diff
+        if: env.NEW == 1
+        run: |
+          grep '<item' old.xml > .diff0.xml
+          grep '<item' new.xml > .diff1.xml
+          diff .diff?.xml || true
+          echo "DIFF=$(diff .diff?.xml > /dev/null; echo $?)" | tee -a $GITHUB_ENV
+
+      - name: push
+        if: env.DIFF != 0
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email $GITHUB_ACTOR@users.noreply.github.com
+          git checkout --orphan icv
+          git rm --cached -rf .
+          git add icv.xml
+          git commit -m "$(date +%s)"
+          git push origin icv --force || true
+
+  rec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: pull
+        run: |
+          git fetch -a
+          git checkout origin/rec -- rec.xml
+          mv {rec,old}.xml
+
+      - name: update
+        run: |
+          bash rec.sh | tee new.xml > rec.xml
+          grep -q '<title' new.xml && echo "NEW=1" | tee -a $GITHUB_ENV
+        env:
+          DOMAIN: ${{ secrets.DOMAIN_ICV }}
+          COOKIE: ${{ secrets.COOKIE_ICV }}
+
+
+      - name: diff
+        if: env.NEW == 1
+        run: |
+          grep '<title' old.xml > .diff0.xml
+          grep '<title' new.xml > .diff1.xml
+          diff .diff?.xml || true
+          echo "DIFF=$(diff .diff?.xml > /dev/null; echo $?)" | tee -a $GITHUB_ENV
+
+      - name: push
+        if: env.DIFF != 0
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email $GITHUB_ACTOR@users.noreply.github.com
+          git checkout --orphan rec
+          git rm --cached -rf .
+          git add rec.xml
+          git commit -m "$(date +%s)"
+          git push origin rec --force || true
+
